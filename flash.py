@@ -42,6 +42,9 @@ dir_path = Path("books/")
 files = [f.name for f in dir_path.iterdir() if f.is_file()]
 
 for file in files:
+    if ".txt" not in file:
+        continue
+
     try:
         subprocess.run(
             ["mpremote", "cp", "books/"+file, ":/books/"+file],
