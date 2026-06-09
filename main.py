@@ -38,8 +38,17 @@ def display_page(current_page, book, total_pages):
         file.seek(LINEWIDTH*LINES*(current_page))
         while i < LINES:
             line = file.read(LINEWIDTH)
+            #clean = ''.join(c for c in line if c.isprintable() or c in '\n\r\t')
+            clean = ""
 
-            display.imageblack.text(line, 0,10*(i+2), 0x00)
+            for c in line:
+                code = ord(c)
+
+                # Keep printable ASCII plus newlines
+                if code >= 32 and code < 127:
+                    clean += c
+
+            display.imageblack.text(clean, 0,10*(i+2), 0x00)
 
             #print(line)
             i += 1
