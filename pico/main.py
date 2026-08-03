@@ -16,8 +16,8 @@ CONFIGPATH = "settings.json"
 LINES = 10
 LINEWIDTH= 31
 
-bookDIR = "books/"
-books = os.listdir(bookDIR)
+bookDIR = "/"
+books =["book.txt"]
 
 config = settings.settings(CONFIGPATH)
 
