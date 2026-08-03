@@ -47,7 +47,7 @@ def encode_cover(x, y, coverPath, nodither):
         bw_data = rgb_data.mean(axis=2)>127
 
     for x in range(HEIGHT):
-        for y in range(WIDTH):
+        for y in range(width):
             if bw_data[y, x]:
                 index = x + (y // 8) * HEIGHT
                 #index = y * (width // 8) + (x // 8)
