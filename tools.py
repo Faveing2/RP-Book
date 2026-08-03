@@ -80,11 +80,11 @@ def normalize_text(text):
 
 def encode_book(bookPath):
 
-    with open(bookPath, "r") as f:
+    with open(bookPath, "r", errors="ignore") as f:
         rawdata = f.read()
         f.close()
 
-    newdata = normalize_text(rawdata)
-
+    #newdata = normalize_text(rawdata)
+    newdata = rawdata
     return newdata
     

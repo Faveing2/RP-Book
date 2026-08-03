@@ -13,7 +13,7 @@ BUTTON2_PIN = 4
 
 CONFIGPATH = "settings.json"
 
-LINES = 10
+LINES = 12
 LINEWIDTH= 31
 
 bookDIR = "/"
@@ -71,14 +71,14 @@ def display_page(current_page, book, total_pages):
                 if code >= 32 and code < 127:
                     final_line += c
 
-            display.imageblack.text(final_line, 0,10*(i+2), 0x00)
+            display.imageblack.text(final_line, 0,9*(i+1), 0x00)
 
             #print(line)
             i += 1
         
-    display.imageblack.text("Page:"+str(current_page)+"/"+str(total_pages), 0,120,0x00)
-    display.imageblack.hline(0,17,250,0x00)
-    display.imageblack.text(book,0,8,0x00)
+    display.imageblack.text("Page:"+str(current_page+1)+"/"+str(total_pages), 0,121,0x00)
+    display.imageblack.hline(0,118,250,0x00)
+    #display.imageblack.text(book,0,8,0x00)
     display.display()
 
     #print(page_data)
@@ -123,7 +123,7 @@ def reading_mode(book_index,book):
             deepsleep()
 
         if button_2.value() == 0:
-            if current_page == total_pages:
+            if current_page+1 == total_pages:
                 continue
             else:
                 current_page += 1

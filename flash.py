@@ -5,6 +5,8 @@ import cv2
 from PIL import Image
 import numpy as np
 import deflate
+import os
+import shutil
 
 from tools import *
 
@@ -52,9 +54,19 @@ with open("pico/cover.bin", "wb") as f:
 ### Rencode the book
 book = encode_book(bookPath)
 
-with open("pico/book.txt", "w") as f:
-    f.write(book)
-    f.close()
+# with open("pico/book.txt", "w", errors="ingore") as f:
+#     f.write(book)
+#     f.close()
+
+try:
+    os.remove("pico/book.txt")
+except FileNotFoundError:
+    pass
+
+shutil.copy(bookPath, "pico/book.txt")
+
+#subprocess.run(["rm", "./pico/book.txt"], check=True)
+#subprocess.run(["mv",  bookPath, ".\pico\book.txt"], check=True)
 
 #### Wipe the Internal Storage of the Pico
 if not nowrite:
