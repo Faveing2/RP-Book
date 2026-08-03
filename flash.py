@@ -31,18 +31,18 @@ parser.add_argument("bookPath", type=str, help="The path to the desired book to 
 parser.add_argument("coverPath", type=str,help="The path to the cover for the desired book to flash")
 
 
-parser.add_argument("--nodither", "nd", action="store_true", help="Disable dithering of the cover")
+parser.add_argument("--nodither", "-nd", action="store_true", help="Disable dithering of the cover")
 
 
 #parser.add_argument("only", type=str, help=)
 
 projectFiles = [
-    "main.py",
-    "settings.json",
-    "settings.py",
-    "epd.py",
-    "lowpower.py",
-    "cover.bin",
+    "pico/main.py",
+    "pico/settings.json",
+    "pico/settings.py",
+    "pico/epd.py",
+    "pico/lowpower.py",
+    "pico/cover.bin",
 ]
 
 args = parser.parse_args()
@@ -95,7 +95,7 @@ for x in range(HEIGHT):
                 print("Array Index:", index)
                 pass
 
-with open("cover.bin", "wb") as f:
+with open("pico/cover.bin", "wb") as f:
     f.write(deflate.zlib_compress(buffer))
 
 #### Wipe the Internal Storage of the Pico
@@ -111,11 +111,14 @@ except subprocess.CalledProcessError as e:
     else:
         print(e.output)
 
+
 #### Write Project files
 for file in projectFiles:
+
+    suffix = file.split("/")[-1]
     try:
         subprocess.run(
-            ["mpremote", "cp", file, ":/"+file],
+            ["mpremote", "cp", file, ":/"+suffix],
             check=True
         )
     except subprocess.CalledProcessError as e:
