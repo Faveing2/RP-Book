@@ -51,7 +51,6 @@ with open("pico/cover.bin", "wb") as f:
 
 ### Rencode the book
 book = encode_book(bookPath)
-print(book)
 
 with open("pico/book.txt", "w") as f:
     f.write(book)
