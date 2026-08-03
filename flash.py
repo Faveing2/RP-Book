@@ -30,20 +30,26 @@ parser = argparse.ArgumentParser(description="Flasher program for PicoBook")
 parser.add_argument("bookPath", type=str, help="The path to the desired book to flash")
 parser.add_argument("coverPath", type=str,help="The path to the cover for the desired book to flash")
 
+
+parser.add_argument("--nodither", "nd", action="store_true", help="Disable dithering of the cover")
+
+
+#parser.add_argument("only", type=str, help=)
+
 projectFiles = [
     "main.py",
     "settings.json",
     "settings.py",
     "epd.py",
     "lowpower.py",
-    "cover.bin"
+    "cover.bin",
 ]
 
 args = parser.parse_args()
 
 bookPath = args.bookPath
 coverPath = args.coverPath
-dither = True
+nodither = args.nodither
 
 ### Encode the cover image
 
@@ -58,7 +64,7 @@ buffer = bytearray(height*width // 8)
 
 img = Image.open(coverPath)
 rgb_img = img.resize((height, width), Image.Resampling.LANCZOS)
-if dither:
+if not nodither:
     rgb_img = rgb_img.convert("L")
     gray = np.array(rgb_img, dtype=np.uint8)
 
