@@ -198,7 +198,14 @@ class EPD_2in13_B_V4_Portrait:
         self.module_exit()
         
 class EPD_2in13_B_V4_Landscape:
-    def __init__(self):
+    def __init__(self, mode=0):
+
+        self.mode = mode
+
+        ### Mode = 0; FULL
+        ### Mode = 1; FAST
+        ### Mode = 2; PART
+
         self.reset_pin = Pin(RST_PIN, Pin.OUT)
         
         self.busy_pin = Pin(BUSY_PIN, Pin.IN, Pin.PULL_UP)
@@ -272,6 +279,17 @@ class EPD_2in13_B_V4_Landscape:
         self.delay_ms(20)
         
     def TurnOnDisplay(self):
+
+        ### Update the update settings
+        # if self.fast:
+
+        #     self.send_command(0x22)
+        #     self.send_data(0xc7)
+        # else:
+        #     self.send_command(0x22)
+        #     self.send_data(0xf7)
+        
+
         self.send_command(0x20)  # Activate Display Update Sequence
         self.ReadBusy()
 
@@ -297,37 +315,71 @@ class EPD_2in13_B_V4_Landscape:
 
     def init(self):
         print('init')
+
         self.reset()
+        if self.mode == 0:
 
-        print("Reset screen")
-        
-        self.ReadBusy()   
-        self.send_command(0x12)  #SWRESET
-        self.ReadBusy()   
+            print("Reset screen")
+            
+            self.ReadBusy()   
+            self.send_command(0x12)  #SWRESET
+            self.ReadBusy()   
 
-        self.send_command(0x01) #Driver output control      
-        self.send_data(0xf9)
-        self.send_data(0x00)
-        self.send_data(0x00)
+            self.send_command(0x01) #Driver output control      
+            self.send_data(0xf9)
+            self.send_data(0x00)
+            self.send_data(0x00)
 
-        self.send_command(0x11) #data entry mode       
-        self.send_data(0x07)
+            self.send_command(0x11) #data entry mode       
+            self.send_data(0x07)
 
-        self.SetWindows(0, 0, self.width-1, self.height-1)
-        self.SetCursor(0, 0)
+            self.SetWindows(0, 0, self.width-1, self.height-1)
+            self.SetCursor(0, 0)
 
-        self.send_command(0x3C) #BorderWaveform
-        self.send_data(0x05)
+            self.send_command(0x3C) #BorderWaveform
+            self.send_data(0x05)
 
-        self.send_command(0x18) #Read built-in temperature sensor
-        self.send_data(0x80)
+            self.send_command(0x18) #Read built-in temperature sensor
+            self.send_data(0x80)
 
-        self.send_command(0x21) #  Display update control
-        self.send_data(0x80)
-        self.send_data(0x80)
+            self.send_command(0x21) #  Display update control
+            self.send_data(0x80)
+            self.send_data(0x80)
 
-        self.ReadBusy()
-        
+            self.ReadBusy()
+
+        elif self.mode == 1:
+
+            self.ReadBusy()   
+            self.send_command(0x12)  #SWRESET
+            self.ReadBusy()   
+
+            self.send_command(0x18) # Read temp sensor
+            self.send_data(0x80)
+
+            self.send_command(0x11) #data entry mode       
+            self.send_data(0x07)
+
+            self.SetWindows(0, 0, self.width-1, self.height-1)
+            self.SetCursor(0, 0)
+
+            self.send_command(0x22) # Load temp value
+            self.send_data(0xb1)
+            self.send_command(0x20)
+            self.ReadBusy()
+
+            # self.send_command(0x3C) #BorderWaveform
+            # self.send_data(0x05)
+
+            self.send_command(0x1a) # Write temp register
+            self.send_data(0x64)
+            self.send_data(0x00)
+ 
+            self.send_command(0x22) #load temp value (Didn't we already do this?)
+            self.send_data(0x91)
+            self.send_command(0x20)
+
+            self.ReadBusy()
         return 0       
         
     def display(self):
@@ -335,11 +387,13 @@ class EPD_2in13_B_V4_Landscape:
         for j in range(int(self.width / 8) - 1, -1, -1):
             for i in range(0, self.height):
                 self.send_data(self.buffer_balck[i + j * self.height])
-        
-        self.send_command(0x26)
-        for j in range(int(self.width / 8) - 1, -1, -1):
-            for i in range(0, self.height):
-                self.send_data(self.buffer_red[i + j * self.height])
+
+        if self.mode == 1:
+            self.send_command(0x22)
+            self.send_data(0xc7)
+        elif self.mode == 0:
+            self.send_command(0x22)
+            self.send_data(0xf7)
 
         self.TurnOnDisplay()
 
@@ -347,10 +401,9 @@ class EPD_2in13_B_V4_Landscape:
     def Clear(self, colorblack, colorred):
         self.send_command(0x24)
         self.send_data1([colorblack] * self.height * int(self.width / 8))
-        
-        self.send_command(0x26)
-        self.send_data1([colorred] * self.height * int(self.width / 8))
-                                
+
+        self.send_command(0x22)
+        self.send_data(0xf7)
         self.TurnOnDisplay()
 
     def sleep(self):

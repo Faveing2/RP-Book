@@ -24,7 +24,7 @@ config = settings.settings(CONFIGPATH)
 config.data["books"] = books
 config.save()
 
-display = epd.EPD_2in13_B_V4_Landscape()
+display = epd.EPD_2in13_B_V4_Landscape(mode=1)
 #test_screen(display)
 
 button_0 = Pin(BUTTON0_PIN, Pin.IN, Pin.PULL_UP)
