@@ -380,30 +380,86 @@ class EPD_2in13_B_V4_Landscape:
             self.send_command(0x20)
 
             self.ReadBusy()
+        elif self.mode == 2:
+            self.digital_write(self.reset_pin, 0)
+            self.delay_ms(1)
+            self.digital_write(self.reset_pin, 1)
+
+            self.send_command(0x3c) # Borderwaveform
+            self.send_data(0x80)
+
+            self.send_command(0x01) # Driver output control
+            self.send_data(0xf9)
+            self.send_data(0x00)
+            self.send_data(0x00)
+
+            self.send_command(0x11) # Data entry mode
+            self.send_command(0x07)
+
+            self.SetWindows(0, 0, self.width-1, self.height-1)
+            self.SetCursor(0, 0)
+            
         return 0       
         
-    def display(self):
+    def display(self, base=False):
         self.send_command(0x24)
         for j in range(int(self.width / 8) - 1, -1, -1):
             for i in range(0, self.height):
                 self.send_data(self.buffer_balck[i + j * self.height])
 
         if self.mode == 1:
+            print("Update fast")
             self.send_command(0x22)
             self.send_data(0xc7)
-        elif self.mode == 0:
+        elif (self.mode == 0) or (base==True):
+            print("Update full")
             self.send_command(0x22)
             self.send_data(0xf7)
+        elif self.mode == 2:
+            print("Update partial")
+            self.send_command(0x22)
+            self.send_data(0xff)
 
         self.TurnOnDisplay()
 
-    
+    def display_base(self): # Display static part of the image when using partial refresh
+        self.send_command(0x24)
+        for j in range(int(self.width / 8) - 1, -1, -1):
+            for i in range(0, self.height):
+                self.send_data(self.buffer_balck[i + j * self.height])
+
+        self.send_command(0x22)
+        self.send_data(0xf7)
+        self.TurnOnDisplay()
+
+    def display_part(self): # Display partial update
+        self.send_command(0x24)
+        for j in range(int(self.width / 8) - 1, -1, -1):
+            for i in range(0, self.height):
+                self.send_data(self.buffer_balck[i + j * self.height])
+
+        self.send_command(0x22)
+        self.send_command(0xff)
+        self.TurnOnDisplay()
+
+    def clear_part(self, colorblack):
+        self.send_command(0x24)
+        self.send_data1([colorblack] * self.height * int(self.width / 8))
+
+        self.send_command(0x22)
+        self.send_data(0x0f)
+
+        self.TurnOnDisplay()
+
     def Clear(self, colorblack, colorred):
         self.send_command(0x24)
         self.send_data1([colorblack] * self.height * int(self.width / 8))
 
         self.send_command(0x22)
-        self.send_data(0xf7)
+        if self.mode == 2:
+            self.send_data(0x0f)
+        else:
+            self.send_data(0xf7)
         self.TurnOnDisplay()
 
     def sleep(self):

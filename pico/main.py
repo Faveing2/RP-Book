@@ -6,6 +6,7 @@ import time
 import settings
 import lowpower
 import deflate
+REFRESH = 3
 
 BUTTON0_PIN = 2
 BUTTON1_PIN = 3
@@ -24,12 +25,15 @@ config = settings.settings(CONFIGPATH)
 config.data["books"] = books
 config.save()
 
-display = epd.EPD_2in13_B_V4_Landscape(mode=1)
+display = epd.EPD_2in13_B_V4_Landscape(mode=2)
 #test_screen(display)
 
 button_0 = Pin(BUTTON0_PIN, Pin.IN, Pin.PULL_UP)
 button_1 = Pin(BUTTON1_PIN, Pin.IN, Pin.PULL_UP)
 button_2 = Pin(BUTTON2_PIN, Pin.IN, Pin.PULL_UP)
+
+total_partial_refresh = 0
+
 
 def normalize_text(text):
     replacements = {
@@ -48,6 +52,8 @@ def normalize_text(text):
     return text
 
 def display_page(current_page, book, total_pages):
+
+    global total_partial_refresh
 
     print("displaying page", current_page)
 
@@ -79,7 +85,12 @@ def display_page(current_page, book, total_pages):
     display.imageblack.text("Page:"+str(current_page+1)+"/"+str(total_pages), 0,121,0x00)
     display.imageblack.hline(0,118,250,0x00)
     #display.imageblack.text(book,0,8,0x00)
-    display.display()
+    if total_partial_refresh == REFRESH:
+        display.display(base=True)
+        total_partial_refresh = 0
+    else:
+        display.display()
+        total_partial_refresh += 1
 
     #print(page_data)
 
