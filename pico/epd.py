@@ -394,7 +394,7 @@ class EPD_2in13_B_V4_Landscape:
             self.send_data(0x00)
 
             self.send_command(0x11) # Data entry mode
-            self.send_command(0x07)
+            self.send_data(0x07)
 
             self.SetWindows(0, 0, self.width-1, self.height-1)
             self.SetCursor(0, 0)
@@ -407,6 +407,12 @@ class EPD_2in13_B_V4_Landscape:
             for i in range(0, self.height):
                 self.send_data(self.buffer_balck[i + j * self.height])
 
+        if base==True:
+            self.send_command(0x26)
+            for j in range(int(self.width / 8) - 1, -1, -1):
+                for i in range(0, self.height):
+                    self.send_data(self.buffer_balck[i + j * self.height])
+
         if self.mode == 1:
             print("Update fast")
             self.send_command(0x22)
@@ -417,6 +423,11 @@ class EPD_2in13_B_V4_Landscape:
             self.send_data(0xf7)
         elif self.mode == 2:
             print("Update partial")
+            self.send_command(0x26)
+            self.imageblack.fill(0xff) # AWFUL HACK, we're going to write the base image to this section of ram
+            for j in range(int(self.width / 8) - 1, -1, -1):
+                for i in range(0, self.height):
+                    self.send_data(self.buffer_balck[i + j * self.height])
             self.send_command(0x22)
             self.send_data(0xff)
 

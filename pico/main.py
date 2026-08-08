@@ -6,7 +6,8 @@ import time
 import settings
 import lowpower
 import deflate
-REFRESH = 3
+
+REFRESH = 5
 
 BUTTON0_PIN = 2
 BUTTON1_PIN = 3
@@ -17,6 +18,8 @@ CONFIGPATH = "settings.json"
 LINES = 12
 LINEWIDTH= 31
 
+DISPLAY_MODE = 2
+
 bookDIR = "/"
 books =["book.txt"]
 
@@ -25,8 +28,21 @@ config = settings.settings(CONFIGPATH)
 config.data["books"] = books
 config.save()
 
-display = epd.EPD_2in13_B_V4_Landscape(mode=2)
-#test_screen(display)
+if DISPLAY_MODE == 0:
+    print("Slow update")
+elif DISPLAY_MODE == 1:
+    print("Fast update")
+elif DISPLAY_MODE == 2:
+    print("Partial update (experimental)")
+
+display = epd.EPD_2in13_B_V4_Landscape(mode=DISPLAY_MODE)
+
+### Set up the initial base image for the partial update
+if DISPLAY_MODE == 2:
+    display.imageblack.fill(0xff)
+    display.imageblack.hline(0,118,250,0x00)
+    display.display(base=True)
+
 
 button_0 = Pin(BUTTON0_PIN, Pin.IN, Pin.PULL_UP)
 button_1 = Pin(BUTTON1_PIN, Pin.IN, Pin.PULL_UP)
@@ -58,6 +74,14 @@ def display_page(current_page, book, total_pages):
     print("displaying page", current_page)
 
     display.imageblack.fill(0xff)
+    display.imageblack.hline(0,118,250,0x00)
+
+    ### Do a full refresh after so man partial refreshes
+    if DISPLAY_MODE ==2:
+        if total_partial_refresh == REFRESH:
+            display.display(base=True)
+            total_partial_refresh = 0
+
     with open(bookDIR+book,"r") as file:
         i = 0
         file.seek(LINEWIDTH*LINES*(current_page))
@@ -83,15 +107,18 @@ def display_page(current_page, book, total_pages):
             i += 1
         
     display.imageblack.text("Page:"+str(current_page+1)+"/"+str(total_pages), 0,121,0x00)
-    display.imageblack.hline(0,118,250,0x00)
-    #display.imageblack.text(book,0,8,0x00)
-    if total_partial_refresh == REFRESH:
-        display.display(base=True)
-        total_partial_refresh = 0
-    else:
-        display.display()
-        total_partial_refresh += 1
-
+    # if DISPLAY_MODE == 2:
+    #     if total_partial_refresh == REFRESH:
+    #         #display.Clear(0xff, 0xff)
+    #         display.display(base=True)
+    #         total_partial_refresh = 0
+    #     else:
+    #         display.display()
+    #         total_partial_refresh += 1
+    # else:
+    #     display.display()
+    display.display()
+    total_partial_refresh += 1
     #print(page_data)
 
 
@@ -171,7 +198,7 @@ def deepsleep():
 
     display.buffer_balck[:] = cover
 
-    display.display()
+    display.display(base=True)
 
     display.sleep()
 
