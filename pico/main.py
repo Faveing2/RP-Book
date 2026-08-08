@@ -1,8 +1,13 @@
 import epd
 from machine import Pin
+import machine
 import os
 import time
 import settings
+import lowpower
+import deflate
+
+REFRESH = 5
 
 BUTTON0_PIN = 2
 BUTTON1_PIN = 3
@@ -10,54 +15,110 @@ BUTTON2_PIN = 4
 
 CONFIGPATH = "settings.json"
 
-LINES = 10
+LINES = 12
 LINEWIDTH= 31
 
-bookDIR = "books/"
-books = os.listdir(bookDIR)
+DISPLAY_MODE = 2
+
+bookDIR = "/"
+books =["book.txt"]
 
 config = settings.settings(CONFIGPATH)
 
 config.data["books"] = books
 config.save()
 
-display = epd.EPD_2in13_B_V4_Landscape()
-#test_screen(display)
+if DISPLAY_MODE == 0:
+    print("Slow update")
+elif DISPLAY_MODE == 1:
+    print("Fast update")
+elif DISPLAY_MODE == 2:
+    print("Partial update (experimental)")
+
+display = epd.EPD_2in13_B_V4_Landscape(mode=DISPLAY_MODE)
+
+### Set up the initial base image for the partial update
+if DISPLAY_MODE == 2:
+    display.imageblack.fill(0xff)
+    display.imageblack.hline(0,118,250,0x00)
+    display.display(base=True)
+
 
 button_0 = Pin(BUTTON0_PIN, Pin.IN, Pin.PULL_UP)
 button_1 = Pin(BUTTON1_PIN, Pin.IN, Pin.PULL_UP)
 button_2 = Pin(BUTTON2_PIN, Pin.IN, Pin.PULL_UP)
 
+total_partial_refresh = 0
+
+
+def normalize_text(text):
+    replacements = {
+        "“": '"',
+        "”": '"',
+        "‘": "'",
+        "’": "'",
+        "—": "-",
+        "–": "-",
+        "…": "...",
+    }
+
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+
+    return text
+
 def display_page(current_page, book, total_pages):
+
+    global total_partial_refresh
 
     print("displaying page", current_page)
 
     display.imageblack.fill(0xff)
+    display.imageblack.hline(0,118,250,0x00)
+
+    ### Do a full refresh after so man partial refreshes
+    if DISPLAY_MODE ==2:
+        if total_partial_refresh == REFRESH:
+            display.display(base=True)
+            total_partial_refresh = 0
+
     with open(bookDIR+book,"r") as file:
         i = 0
         file.seek(LINEWIDTH*LINES*(current_page))
         while i < LINES:
-            line = file.read(LINEWIDTH)
             #clean = ''.join(c for c in line if c.isprintable() or c in '\n\r\t')
-            clean = ""
+            try:
+                clean = normalize_text(file.read(LINEWIDTH))
+            except UnicodeError:
+                clean = "Unicode error"
+                
+            final_line = ""
 
-            for c in line:
+            for c in clean:
                 code = ord(c)
 
                 # Keep printable ASCII plus newlines
                 if code >= 32 and code < 127:
-                    clean += c
+                    final_line += c
 
-            display.imageblack.text(clean, 0,10*(i+2), 0x00)
+            display.imageblack.text(final_line, 0,9*(i+1), 0x00)
 
             #print(line)
             i += 1
         
-    display.imageblack.text("Page:"+str(current_page)+"/"+str(total_pages), 0,120,0x00)
-    display.imageblack.hline(0,17,250,0x00)
-    display.imageblack.text(book,0,8,0x00)
+    display.imageblack.text("Page:"+str(current_page+1)+"/"+str(total_pages), 0,121,0x00)
+    # if DISPLAY_MODE == 2:
+    #     if total_partial_refresh == REFRESH:
+    #         #display.Clear(0xff, 0xff)
+    #         display.display(base=True)
+    #         total_partial_refresh = 0
+    #     else:
+    #         display.display()
+    #         total_partial_refresh += 1
+    # else:
+    #     display.display()
     display.display()
-
+    total_partial_refresh += 1
     #print(page_data)
 
 
@@ -95,10 +156,12 @@ def reading_mode(book_index,book):
         if button_1.value() == 0:
             config.data["current_book"] = ""
             config.save()
-            bookSelectionMenu()
+            #bookSelectionMenu()
+            #Go into cover deep sleep
+            deepsleep()
 
         if button_2.value() == 0:
-            if current_page == total_pages:
+            if current_page+1 == total_pages:
                 continue
             else:
                 current_page += 1
@@ -124,6 +187,35 @@ def display_book_selection(display, current_selection:int, books):
 
     display.display()
 
+def deepsleep():
+    print("Entering deep sleep")
+
+    cover = None
+
+    with open("cover.bin", "rb") as f:
+        with deflate.DeflateIO(f, deflate.ZLIB) as d:
+            cover = bytearray(d.read())
+
+    display.buffer_balck[:] = cover
+
+    display.display(base=True)
+
+    display.sleep()
+
+    wakeup = False
+
+    def button_handler(pin):
+        nonlocal wakeup
+        wakeup = True
+
+    button_1.irq(trigger=Pin.IRQ_FALLING, handler=button_handler)
+
+    while not wakeup:
+        machine.idle()
+
+    #reading_mode(config.data["books"].index(config.data["current_book"]),config.data["current_book"])
+    machine.reset()
+    
 def bookSelectionMenu():
     
     selected_book = 0
@@ -154,7 +246,9 @@ def bookSelectionMenu():
         time.sleep(0.05)
 
 if config.data["current_book"] == "":
-    bookSelectionMenu()
+    config.data["current_book"] = config.data["books"][0]
+    reading_mode(config.data["books"].index(config.data["current_book"]),config.data["current_book"])
+    #bookSelectionMenu()
 else:
     reading_mode(config.data["books"].index(config.data["current_book"]),config.data["current_book"])
     pass

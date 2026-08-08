@@ -1,54 +1,112 @@
 import subprocess
 from pathlib import Path
 
+import cv2
+from PIL import Image
+import numpy as np
+import deflate
+import os
+import shutil
+
+from tools import *
+
+import struct
+
+WIDTH = 122
+HEIGHT = 250
+
+import argparse
+
+parser = argparse.ArgumentParser(description="Flasher program for PicoBook")
+
+parser.add_argument("bookPath", type=str, help="The path to the desired book to flash")
+parser.add_argument("coverPath", type=str,help="The path to the cover for the desired book to flash")
+
+parser.add_argument("--nodither", "-nd", action="store_true", help="Disable dithering of the cover")
+parser.add_argument("--nowrite", "-nw", action="store_true", help="Do not wipe or write to the pico")
+
+#parser.add_argument("only", type=str, help=)
+
 projectFiles = [
-    "main.py",
-    "settings.json",
-    "settings.py",
-    "epd.py"
+    "pico/main.py",
+    "pico/settings.json",
+    "pico/settings.py",
+    "pico/epd.py",
+    "pico/lowpower.py",
+    "pico/cover.bin",
+    "pico/book.txt"
 ]
 
-#### Wipe the Internal Storage of the Pico
-print("Erasing Virtual Filesystem")
+args = parser.parse_args()
+
+bookPath = args.bookPath
+coverPath = args.coverPath
+nodither = args.nodither
+nowrite = args.nowrite
+
+### Encode the cover image
+print("Encoding cover")
+buffer = encode_cover(WIDTH, HEIGHT, coverPath, nodither)
+
+with open("pico/cover.bin", "wb") as f:
+    f.write(deflate.zlib_compress(buffer))
+
+### Rencode the book
+book = encode_book(bookPath)
+
+# with open("pico/book.txt", "w", errors="ingore") as f:
+#     f.write(book)
+#     f.close()
+
 try:
-    subprocess.run(
-        ["mpremote", "rm", "-rf", ":/"],
-        check=True
-    )
-except subprocess.CalledProcessError as e:
-    if e.returncode == 1:
-        print("Erased Virtual Filesystem")
-    else:
-        print(e.output)
+    os.remove("pico/book.txt")
+except FileNotFoundError:
+    pass
 
-#### Write Project files
-for file in projectFiles:
+shutil.copy(bookPath, "pico/book.txt")
+
+#subprocess.run(["rm", "./pico/book.txt"], check=True)
+#subprocess.run(["mv",  bookPath, ".\pico\book.txt"], check=True)
+
+#### Wipe the Internal Storage of the Pico
+if not nowrite:
+    print("Erasing Virtual Filesystem")
     try:
         subprocess.run(
-            ["mpremote", "cp", file, ":/"+file],
+            ["mpremote", "rm", "-rf", ":/"],
             check=True
         )
     except subprocess.CalledProcessError as e:
-        print(e.output)
+        if e.returncode == 1:
+            print("Erased Virtual Filesystem")
+        else:
+            print(e.output)
 
-### Write books
+    #### Write Project files
+    for file in projectFiles:
 
-subprocess.run(
-    ["mpremote", "mkdir", "books"],
-    check=True
-)
+        suffix = file.split("/")[-1]
+        try:
+            subprocess.run(
+                ["mpremote", "cp", file, ":/"+suffix],
+                check=True
+            )
+        except subprocess.CalledProcessError as e:
+            print(e.output)
 
-dir_path = Path("books/")
-files = [f.name for f in dir_path.iterdir() if f.is_file()]
+    # ### Write books
 
-for file in files:
-    if ".txt" not in file:
-        continue
+    # print("Copying book to the Pico")
+    # subprocess.run(
+    #     ["mpremote", "mkdir", "books"],
+    #     check=True
+    # )
+    # try:
+    #     subprocess.run(
+    #         ["mpremote", "cp", bookPath, ":/books/"+bookPath], check=True
+    #     )
+    # except subprocess.CalledProcessError as e:
+    #     print(e.output)
 
-    try:
-        subprocess.run(
-            ["mpremote", "cp", "books/"+file, ":/books/"+file],
-            check=True
-        )
-    except subprocess.CalledProcessError as e:
-        print(e.output)
+else:
+    print("Skipping erasing virtual filesystem and copying files")
