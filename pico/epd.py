@@ -227,7 +227,9 @@ class EPD_2in13_B_V4_Landscape:
         self.imageblack = framebuf.FrameBuffer(self.buffer_balck, self.height, self.width, framebuf.MONO_VLSB)
         self.imagered = framebuf.FrameBuffer(self.buffer_red, self.height, self.width, framebuf.MONO_VLSB)
 
-        self.mvb = memoryview(self.buffer_balck)
+        #self.mvb = memoryview(self.buffer_balck)
+        self.buffer_white= b"\xff"*len(self.buffer_balck)
+        self.txbuffer = bytearray(self.height * self.width // 8)
         self.init()
 
     def digital_write(self, pin, value):
@@ -402,39 +404,39 @@ class EPD_2in13_B_V4_Landscape:
             self.SetCursor(0, 0)
             
         return 0
+    
     @micropython.native
-    def display_buffer_black(self, buf1=bytearray(1)):
-        #start = time.ticks_us()
-
+    def display_buffer_black(self):
+        # Gods most optimized python function
         width = self.width
         height = self.height
-        dc_pin = self.dc_pin
-        cs_pin = self.cs_pin
-        spi = self.spi
-        mvb = self.mvb
+        dc_pin = self.dc_pin.value
+        cs_pin = self.cs_pin.value
+        spi = self.spi.write
+        buffer_balck = self.buffer_balck
+        txbuffer = self.txbuffer
+        dc_pin(1)
+        cs_pin(0)
 
-        for j in range(int(width / 8) - 1, -1, -1):
-            for i in range(0, height):
-                dc_pin.value(1)
-                cs_pin.value(0)
-                buf1[0] = mvb[i + j * height]
-                spi.write(buf1)
-                cs_pin.value(1) 
-        #print("Frame transfer: " , time.ticks_us()-start)
+        for j in range(width // 8):
+            src = (width // 8 - 1 - j) * height
+            dst = j * height
+            txbuffer[dst:dst + height] = buffer_balck[src:src + height]
+
+        spi(txbuffer)
+        cs_pin(1) 
 
     @micropython.native
     def display_white(self):
-        dc_pin = self.dc_pin
-        cs_pin = self.cs_pin
-        spi = self.spi
-        mvb = self.mvb
+        dc_pin = self.dc_pin.value
+        cs_pin = self.cs_pin.value
+        spi = self.spi.write
+        tx = self.buffer_white
 
-        for _ in range(len(mvb)):
-                dc_pin.value(1)
-                cs_pin.value(0)
-                #buf1[0] = buf[i + j * self.height]
-                spi.write(b"\xff")
-                cs_pin.value(1) 
+        dc_pin(1)
+        cs_pin(0)
+        spi(tx)
+        cs_pin(1) 
     
     def display(self, base=False):
         self.send_command(0x24)
