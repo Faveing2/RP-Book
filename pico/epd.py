@@ -30,7 +30,7 @@
 from machine import Pin, SPI
 import framebuf
 import utime
-
+import time
 
 EPD_WIDTH       = 122
 EPD_HEIGHT      = 250
@@ -226,6 +226,8 @@ class EPD_2in13_B_V4_Landscape:
         self.buffer_red = bytearray(self.height * self.width // 8)
         self.imageblack = framebuf.FrameBuffer(self.buffer_balck, self.height, self.width, framebuf.MONO_VLSB)
         self.imagered = framebuf.FrameBuffer(self.buffer_red, self.height, self.width, framebuf.MONO_VLSB)
+
+        self.mvb = memoryview(self.buffer_balck)
         self.init()
 
     def digital_write(self, pin, value):
@@ -399,19 +401,51 @@ class EPD_2in13_B_V4_Landscape:
             self.SetWindows(0, 0, self.width-1, self.height-1)
             self.SetCursor(0, 0)
             
-        return 0       
-        
+        return 0
+    @micropython.native
+    def display_buffer_black(self, buf1=bytearray(1)):
+        #start = time.ticks_us()
+
+        width = self.width
+        height = self.height
+        dc_pin = self.dc_pin
+        cs_pin = self.cs_pin
+        spi = self.spi
+        mvb = self.mvb
+
+        for j in range(int(width / 8) - 1, -1, -1):
+            for i in range(0, height):
+                dc_pin.value(1)
+                cs_pin.value(0)
+                buf1[0] = mvb[i + j * height]
+                spi.write(buf1)
+                cs_pin.value(1) 
+        #print("Frame transfer: " , time.ticks_us()-start)
+
+    @micropython.native
+    def display_white(self):
+        dc_pin = self.dc_pin
+        cs_pin = self.cs_pin
+        spi = self.spi
+        mvb = self.mvb
+
+        for _ in range(len(mvb)):
+                dc_pin.value(1)
+                cs_pin.value(0)
+                #buf1[0] = buf[i + j * self.height]
+                spi.write(b"\xff")
+                cs_pin.value(1) 
+    
     def display(self, base=False):
         self.send_command(0x24)
-        for j in range(int(self.width / 8) - 1, -1, -1):
-            for i in range(0, self.height):
-                self.send_data(self.buffer_balck[i + j * self.height])
+        # for j in range(int(self.width / 8) - 1, -1, -1):
+        #     for i in range(0, self.height):
+        #         self.send_data(self.buffer_balck[i + j * self.height])
+        self.display_buffer_black()
 
         if base==True:
             self.send_command(0x26)
-            for j in range(int(self.width / 8) - 1, -1, -1):
-                for i in range(0, self.height):
-                    self.send_data(self.buffer_balck[i + j * self.height])
+            self.display_buffer_black()
 
         if self.mode == 1:
             print("Update fast")
@@ -424,10 +458,7 @@ class EPD_2in13_B_V4_Landscape:
         elif self.mode == 2:
             print("Update partial")
             self.send_command(0x26)
-            self.imageblack.fill(0xff) # AWFUL HACK, we're going to write the base image to this section of ram
-            for j in range(int(self.width / 8) - 1, -1, -1):
-                for i in range(0, self.height):
-                    self.send_data(self.buffer_balck[i + j * self.height])
+            self.display_white()
             self.send_command(0x22)
             self.send_data(0xff)
 
