@@ -13,6 +13,8 @@ DC_PIN = 8
 CS_PIN = 9
 BUSY_PIN = 13
 
+CUSTOM_LUT = True ### Very experimental, False for defaults
+
 # Commands to control the epd driver
 DRIVER_OUTPUT_SETTING = 0x01
 GATE_DRIVE_SETTING = 0x03
@@ -45,16 +47,74 @@ OTP_REG_READ = 0x2d
 READ_USER_ID = 0x2e
 READ_STATUS_BIT = 0x2f
 BORDER_WAVEFORM = 0x3c
-
+WRITE_LUT_REG = 0x32
+EOPT_LUT = 0x3f
 SET_RAM_X = 0x44
 SET_RAM_Y = 0x45
-
 SET_RAM_X_CURSOR = 0x4e
 SET_RAM_Y_CURSOR = 0x4f
+
+### Parameters
+PARTIAL_LUT_DISPLAY_MODE = 0xB9
+
 
 MODE_FULL = 0
 MODE_FAST = 1
 MODE_PARTIAL = 2
+
+### LUT profiles copied from waveshare V3 driver (Documentation says they should be compatible?)
+lut_partial_update = bytearray([
+        0x0,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,# VS[LUT0]
+        0x80,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,# VS[LUT1]
+        0x40,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,# VS[LUT2]
+        0x0,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,# VS[LUT3]
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,# VS[LUT4]
+        0xFF,0x0,0x0,0x0,0x0,0x0,0x0, #Timing 0 Group 
+        0x1,0x0,0x0,0x0,0x0,0x0,0x0, #Timing 1 Group
+        0x1,0x0,0x0,0x0,0x0,0x0,0x0, #Timing 2 Group
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0, #Timing 3 Group
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0, #Timing 4 Group
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x07,0x07,0x07,0x07,0x07,0x07,0x0,0x0,0x0, # FR values 0-7, last 3 bytes are XDN
+        0x22,0x17,0x41,0x00,0x32,0x36
+])
+
+#lut_partial_update = bytearray([0x0]*153)
+
+# Settings that were added to the end of lut_partial_update
+lut_partial_settings = bytearray([0x22,0x17,0x41,0x00,0x32,0x36])
+
+lut_full_update = bytearray([ 
+        0x80,0x4A,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x40,0x4A,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x80,0x4A,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x40,0x4A,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0xF,0x0,0x0,0x0,0x0,0x0,0x0,
+        0xF,0x0,0x0,0xF,0x0,0x0,0x2,
+        0xF,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x1,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+        0x22,0x22,0x22,0x22,0x22,0x22,0x0,0x0,0x0,
+        0x22,0x17,0x41,0x00,0x32,0x36
+])
+
+#lut_partial_update = lut_full_update[:]
+
+lut_full_settings = bytearray([0x22,0x17,0x41,0x00,0x32,0x36])
 
 class epd213v4:
 
@@ -82,7 +142,7 @@ class epd213v4:
         self.frame = framebuf.FrameBuffer(self.frame_buf, self.height, self.width, framebuf.MONO_VLSB)
         self.old_frame = framebuf.FrameBuffer(self.old_frame_buf, self.height, self.width, framebuf.MONO_VLSB)
 
-        self.old_frame.fill(0xff) # Fill with white so first partial refresh works correctly
+        self.old_frame.fill(0x00) # Fill with white so first partial refresh works correctly
 
         self.tx_buf = bytearray(self.height * self.width // 8) # Buffer that will hold data to be send to the screen
 
@@ -94,72 +154,76 @@ class epd213v4:
         self.sendCommand(SW_RESET)
         self.readBusy()
 
+        self.sendCommand(DRIVER_OUTPUT_SETTING)
+        self.sendData(0xf9)
+        self.sendData(0x00)
+        self.sendData(0x00)
+
+        self.sendCommand(DATA_ENTRY_MODE)
+        self.sendData(0x07)
+
+        self.setWindow(0,0, self.width-1, self.height-1)
+        self.setCursor(0,0)
+
+        self.sendCommand(BORDER_WAVEFORM)
+        self.sendData(0x05)
+
+        self.sendCommand(TEMP_SENSOR_CONTROL)
+        self.sendData(0x80)
+
+        self.sendCommand(DISPLAY_UPDATE_CONTROL_1)
+        self.sendData(0x80)
+        self.sendData(0x80)
+
+        self.sendCommand(WRITE_TEMP_SENSOR_REG) # Write temp register
+        self.sendData(0x64)
+        self.sendData(0x00)
+
+        #self.write_lut()
+
+        return 0
+
+    def write_lut(self):
+
         if self.mode == MODE_FULL:
-
-            self.sendCommand(DRIVER_OUTPUT_SETTING)
-            self.sendData(0xf9)
-            self.sendData(0x00)
-            self.sendData(0x00)
-
-            self.sendCommand(DATA_ENTRY_MODE)
-            self.sendData(0x07)
-
-            self.setWindow(0,0, self.width-1, self.height-1)
-            self.setCursor(0,0)
-
-            self.sendCommand(BORDER_WAVEFORM)
-            self.sendData(0x05)
-
-            self.sendCommand(TEMP_SENSOR_CONTROL)
-            self.sendData(0x80)
-
-            self.sendCommand(DISPLAY_UPDATE_CONTROL_1)
-            self.sendData(0x80)
-            self.sendData(0x80)
-
-            self.sendCommand(WRITE_TEMP_SENSOR_REG) # Write temp register
-            self.sendData(0x64)
-            self.sendData(0x00)
-
-            self.readBusy()
-        elif self.mode == MODE_FAST:
-            self.sendCommand(TEMP_SENSOR_CONTROL)
-            self.sendData(0x80)
-
-            self.sendCommand(DATA_ENTRY_MODE)
-            self.sendData(0x07)
-
-            self.setWindow(0,0, self.width-1, self.height-1)
-            self.setCursor(0,0)
-
-            self.sendCommand(DISPLAY_UPDATE_CONTROL_1) #WHy?
-            self.sendData(0xb1)
-            self.sendCommand(0x20)
+            self.sendCommand(WRITE_LUT_REG)
+            self.dc_pin.value(1)
+            self.cs_pin.value(0)
+            self.spi.write(lut_full_update)
+            self.cs_pin.value(1)
             self.readBusy()
 
-            self.sendCommand(WRITE_TEMP_SENSOR_REG) # Write temp register
-            self.sendData(0x64)
-            self.sendData(0x00)
- 
-            self.sendCommand(DISPLAY_UPDATE_CONTROL_1) #Again?
-            self.sendData(0x91)
-            self.sendCommand(0x20)
-
-            self.readBusy()
+            self.sendCommand(EOPT_LUT)
+            self.sendData(lut_full_settings[0])
+            self.sendCommand(GATE_DRIVE_SETTING)
+            self.sendData(lut_full_settings[1])
+            self.sendCommand(SOURCE_DRIVE_VOLTAGE)
+            self.sendData(lut_full_settings[2])
+            self.sendData(lut_full_settings[3])
+            self.sendData(lut_full_settings[4])
+            self.sendCommand(WRITE_VCOM)
+            self.sendData(lut_full_settings[5])
         elif self.mode == MODE_PARTIAL:
-            self.sendCommand(BORDER_WAVEFORM)
-            self.sendData(0x80)
+            self.sendCommand(WRITE_LUT_REG)
+            for i in range(153):
+                self.sendData(lut_partial_update[i])
+                print(lut_partial_update[i])
+            self.readBusy()
 
-            self.sendCommand(DRIVER_OUTPUT_SETTING)
-            self.sendData(0xf9)
-            self.sendData(0x00)
-            self.sendData(0x00)
+            # self.sendCommand(EOPT_LUT)
+            # self.sendData(lut_partial_settings[0])
+            # self.sendCommand(GATE_DRIVE_SETTING)
+            # self.sendData(lut_partial_settings[1])
+            # self.sendCommand(SOURCE_DRIVE_VOLTAGE)
+            # self.sendData(lut_partial_settings[2])
+            # self.sendData(lut_partial_settings[3])
+            # self.sendData(lut_partial_settings[4])
+            # self.sendCommand(WRITE_VCOM)
+            # self.sendData(lut_partial_settings[5])
+            # self.readBusy()
+        elif self.mode == MODE_FAST:
+            return 0 # No LUT for fast mode rn
 
-            self.sendCommand(DATA_ENTRY_MODE) # Data entry mode
-            self.sendData(0x07)
-
-            self.setWindow(0, 0, self.width-1, self.height-1)
-            self.setCursor(0, 0)
 
     def setWindow(self, Xstart, Ystart, Xend, Yend):
         self.sendCommand(SET_RAM_X)
@@ -207,6 +271,7 @@ class epd213v4:
         utime.sleep(50/1000)
 
     def display(self, full=False):
+
         if (self.mode==MODE_FULL):
             self.sendCommand(WRITE_BW_RAM)
             self.transfer_fb()
@@ -221,13 +286,32 @@ class epd213v4:
             self.sendCommand(DISPLAY_UPDATE_CONTROL_2)
             self.sendData(0xf7)
         elif self.mode==MODE_PARTIAL:
+
+
+            self.sendCommand(DISPLAY_UPDATE_CONTROL_2)
+            if CUSTOM_LUT:
+                self.sendData(PARTIAL_LUT_DISPLAY_MODE) ### FROM V3 Driver may not work?
+            else:
+                self.sendData(0xff)
+
+            # if CUSTOM_LUT:
+            #     self.sendCommand(0x37);
+            #     self.sendData(0x00);
+            #     self.sendData(0x00);
+            #     self.sendData(0x00);
+            #     self.sendData(0x00);
+            #     self.sendData(0x00);
+            #     self.sendData(0x40); # Set ram ping pong mode
+            #     self.sendData(0x00);
+            #     self.sendData(0x00);
+            #     self.sendData(0x00);
+            #     self.sendData(0x00);
+
             self.sendCommand(WRITE_BW_RAM)
             self.transfer_fb()
             self.sendCommand(WRITE_RED_RAM)
             self.transfer_old_fb()
 
-            self.sendCommand(DISPLAY_UPDATE_CONTROL_2)
-            self.sendData(0xff)
             self.turnOnDisplay()
             #self.old_frame_buf = self.frame_buf[:]
 
@@ -255,6 +339,7 @@ class epd213v4:
         self.old_frame_buf = self.temp_buf
 
     def turnOnDisplay(self):
+        self.write_lut()
         self.sendCommand(MASTER_ACTIVATION)
         self.readBusy()
 
