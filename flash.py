@@ -31,7 +31,7 @@ projectFiles = [
     "pico/main.py",
     "pico/settings.json",
     "pico/settings.py",
-    "pico/epd.py",
+    "pico/epd213V4.py",
     "pico/lowpower.py",
     "pico/cover.bin",
     "pico/book.txt"

@@ -1,4 +1,4 @@
-import epd
+import epd213V4 as epd
 from machine import Pin
 import machine
 import os
@@ -18,7 +18,7 @@ CONFIGPATH = "settings.json"
 LINES = 12
 LINEWIDTH= 31
 
-DISPLAY_MODE = 2
+DISPLAY_MODE = epd.MODE_PARTIAL
 
 bookDIR = "/"
 books =["book.txt"]
@@ -28,20 +28,20 @@ config = settings.settings(CONFIGPATH)
 config.data["books"] = books
 config.save()
 
-if DISPLAY_MODE == 0:
+if DISPLAY_MODE == epd.MODE_FULL:
     print("Slow update")
-elif DISPLAY_MODE == 1:
+elif DISPLAY_MODE == epd.MODE_FAST:
     print("Fast update")
-elif DISPLAY_MODE == 2:
+elif DISPLAY_MODE == epd.MODE_PARTIAL:
     print("Partial update (experimental)")
 
-display = epd.EPD_2in13_B_V4_Landscape(mode=DISPLAY_MODE)
+display = epd.epd213v4(mode=epd.MODE_PARTIAL)
 
 ### Set up the initial base image for the partial update
-if DISPLAY_MODE == 2:
-    display.imageblack.fill(0xff)
-    display.imageblack.hline(0,118,250,0x00)
-    display.display(base=True)
+if DISPLAY_MODE == epd.MODE_PARTIAL:
+    display.frame.fill(0xff)
+    display.frame.hline(0,118,250,0x00)
+    display.display(full=True)
 
 
 button_0 = Pin(BUTTON0_PIN, Pin.IN, Pin.PULL_UP)
@@ -73,13 +73,13 @@ def display_page(current_page, book, total_pages):
 
     print("displaying page", current_page)
 
-    display.imageblack.fill(0xff)
-    display.imageblack.hline(0,118,250,0x00)
+    display.frame.fill(0xff)
+    display.frame.hline(0,118,250,0x00)
 
     ### Do a full refresh after so man partial refreshes
-    if DISPLAY_MODE ==2:
+    if DISPLAY_MODE == epd.MODE_PARTIAL:
         if total_partial_refresh == REFRESH:
-            display.display(base=True)
+            display.display(full=True)
             total_partial_refresh = 0
 
     with open(bookDIR+book,"r") as file:
@@ -101,12 +101,12 @@ def display_page(current_page, book, total_pages):
                 if code >= 32 and code < 127:
                     final_line += c
 
-            display.imageblack.text(final_line, 0,9*(i+1), 0x00)
+            display.frame.text(final_line, 0,9*(i+1), 0x00)
 
             #print(line)
             i += 1
         
-    display.imageblack.text("Page:"+str(current_page+1)+"/"+str(total_pages), 0,121,0x00)
+    display.frame.text("Page:"+str(current_page+1)+"/"+str(total_pages), 0,121,0x00)
     # if DISPLAY_MODE == 2:
     #     if total_partial_refresh == REFRESH:
     #         #display.Clear(0xff, 0xff)
@@ -174,16 +174,16 @@ def reading_mode(book_index,book):
 def display_book_selection(display, current_selection:int, books):
 
     #display.Clear(0xff, 0xff)
-    display.imageblack.fill(0xff)
+    display.frame.fill(0xff)
 
     for index, book in enumerate(books):
 
         if current_selection == index:
-            display.imageblack.rect(0,10*(index+1),8,8,0x00, True)
+            display.frame.rect(0,10*(index+1),8,8,0x00, True)
         else:
-            display.imageblack.rect(0,10*(index+1),8,8,0x00)
+            display.frame.rect(0,10*(index+1),8,8,0x00)
 
-        display.imageblack.text(book, 10, 10*(index+1), 0x00)
+        display.frame.text(book, 10, 10*(index+1), 0x00)
 
     display.display()
 
@@ -196,9 +196,9 @@ def deepsleep():
         with deflate.DeflateIO(f, deflate.ZLIB) as d:
             cover = bytearray(d.read())
 
-    display.buffer_balck[:] = cover
+    display.frame_buf[:] = cover
 
-    display.display(base=True)
+    display.display(full=True)
 
     display.sleep()
 
