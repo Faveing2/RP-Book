@@ -102,11 +102,18 @@ def display_page(current_page, book, total_pages):
                     final_line += c
 
             display.frame.text(final_line, 0,9*(i+1), 0x00)
+            #display.old_frame.text(final_line, 0,9*(i+1), 0xff)
 
             #print(line)
             i += 1
         
     display.frame.text("Page:"+str(current_page+1)+"/"+str(total_pages), 0,121,0x00)
+
+    # display.old_frame.text("Page:"+str(current_page+1)+"/"+str(total_pages), 120,121,0x00) ### WHITE
+    # display.frame.text("Page:"+str(current_page+1)+"/"+str(total_pages), 120,121,0xff)
+
+    # display.old_frame.text("Page:"+str(current_page+1)+"/"+str(total_pages), 120,121,0xff) ### WHITE
+    # display.frame.text("Page:"+str(current_page+1)+"/"+str(total_pages), 120,121,0xff)
     # if DISPLAY_MODE == 2:
     #     if total_partial_refresh == REFRESH:
     #         #display.Clear(0xff, 0xff)

@@ -117,6 +117,10 @@ class epd213v4:
             self.sendData(0x80)
             self.sendData(0x80)
 
+            self.sendCommand(WRITE_TEMP_SENSOR_REG) # Write temp register
+            self.sendData(0x64)
+            self.sendData(0x00)
+
             self.readBusy()
         elif self.mode == MODE_FAST:
             self.sendCommand(TEMP_SENSOR_CONTROL)
@@ -203,26 +207,32 @@ class epd213v4:
         utime.sleep(50/1000)
 
     def display(self, full=False):
-
-        self.sendCommand(WRITE_BW_RAM)
-        self.transfer_fb()
-
-        if (full == True):
-            self.sendCommand(WRITE_RED_RAM)
-            self.transfer_fb()
-
         if (self.mode==MODE_FULL):
+            self.sendCommand(WRITE_BW_RAM)
+            self.transfer_fb()
             self.sendCommand(DISPLAY_UPDATE_CONTROL_2)
             self.sendData(0xc7)
-        elif (self.mode==MODE_FAST)or (full==True):
+        elif (self.mode==MODE_FAST) or (full==True):
+            self.sendCommand(WRITE_BW_RAM)
+            self.transfer_fb()
+            if full:
+                self.sendCommand(WRITE_RED_RAM)
+                self.transfer_fb()
             self.sendCommand(DISPLAY_UPDATE_CONTROL_2)
             self.sendData(0xf7)
         elif self.mode==MODE_PARTIAL:
+            self.sendCommand(WRITE_BW_RAM)
+            self.transfer_fb()
             self.sendCommand(WRITE_RED_RAM)
             self.transfer_old_fb()
 
             self.sendCommand(DISPLAY_UPDATE_CONTROL_2)
             self.sendData(0xff)
+            self.turnOnDisplay()
+            #self.old_frame_buf = self.frame_buf[:]
+
+            return 0
+
         self.turnOnDisplay()
 
     def display_partial(self): ### Experimental function
